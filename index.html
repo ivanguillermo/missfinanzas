@@ -1,10 +1,16 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<base target="_top">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Royal App</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#7048e8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Royal App">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;800&display=swap" rel="stylesheet">
 <style>
@@ -132,12 +138,32 @@ const $ = id => document.getElementById(id);
 let S = null, view = 'inicio', month = curMonth(), cmpA = curMonth(), cmpB = prevMonth(curMonth());
 
 /* ---------- Servidor ---------- */
+const API_URL = 'PEGA_AQUI_LA_URL_/exec_DE_APPS_SCRIPT';
+const CLIENT_ID = 'PEGA_AQUI_TU_CLIENT_ID.apps.googleusercontent.com';
+let TOKEN = null;
 function run(fn, args, okMsg) {
   document.body.classList.add('busy');
-  const r = google.script.run
-    .withSuccessHandler(s => { document.body.classList.remove('busy'); S = s; closeModal(); render(); if (okMsg) toast(okMsg); })
-    .withFailureHandler(e => { document.body.classList.remove('busy'); toast((e && e.message) || 'No se pudo completar la acción.', true); });
-  r[fn].apply(r, args);
+  fetch(API_URL, { method: 'POST', body: JSON.stringify({ token: TOKEN, fn: fn, args: args }) })
+    .then(r => r.json())
+    .then(r => {
+      document.body.classList.remove('busy');
+      if (!r.ok) { if (r.auth) signOut(); toast(r.error || 'No se pudo completar la acción.', true); return; }
+      S = r.data; closeModal(); render(); if (okMsg) toast(okMsg);
+    })
+    .catch(() => { document.body.classList.remove('busy'); toast('No hay conexión con tu Sheet. Revisa tu internet.', true); });
+}
+function signOut() { TOKEN = null; try { localStorage.removeItem('royal_t'); } catch (e) {} showLogin(); }
+function showLogin() {
+  S = null; $('fab').style.display = 'none'; closeModal();
+  $('app').innerHTML = '<div style="padding:44px 0;text-align:center"><div class="total" style="font-size:28px">Entra a Royal App</div><p class="hint">Usa la cuenta de Google que tiene acceso.</p><div id="gbtn" style="display:inline-block"></div></div>';
+  google.accounts.id.renderButton($('gbtn'), { theme: 'outline', size: 'large', shape: 'pill' });
+}
+function onCredential(resp) { TOKEN = resp.credential; try { localStorage.setItem('royal_t', TOKEN); } catch (e) {} run('getState', []); }
+function init() {
+  if (!window.google || !google.accounts) { setTimeout(init, 300); return; }
+  google.accounts.id.initialize({ client_id: CLIENT_ID, callback: onCredential, auto_select: true });
+  try { TOKEN = localStorage.getItem('royal_t'); } catch (e) {}
+  if (TOKEN) run('getState', []); else showLogin();
 }
 function toast(msg, err) {
   const t = $('toast'); t.textContent = msg; t.className = 'show' + (err ? ' err' : '');
@@ -172,6 +198,7 @@ const budgetOf = name => (S.categories.gasto.find(c => c.name === name) || {}).b
 
 /* ---------- Vistas ---------- */
 function render() {
+  if (!S) return;
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === view));
   $('fab').style.display = view === 'comparar' ? 'none' : '';
   $('app').innerHTML = view === 'inicio' ? viewInicio() : view === 'movs' ? viewMovs() : viewComparar();
@@ -343,7 +370,8 @@ document.addEventListener('change', e => {
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
-run('getState', []);
+init();
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
 </script>
 </body>
 </html>
