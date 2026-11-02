@@ -138,8 +138,8 @@ const $ = id => document.getElementById(id);
 let S = null, view = 'inicio', month = curMonth(), cmpA = curMonth(), cmpB = prevMonth(curMonth());
 
 /* ---------- Servidor ---------- */
-const API_URL = 'PEGA_AQUI_LA_URL_/exec_DE_APPS_SCRIPT';
-const CLIENT_ID = 'PEGA_AQUI_TU_CLIENT_ID.apps.googleusercontent.com';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyx_fKMHCUI-XelpIdL-OhD50oxXzPYDK3eXiC3VMMu56ocoWd49Rko90CSBaV97zO_Jg/exec';
+const CLIENT_ID = '710379501227-h2usp8rfplhpahl2hh5qgu670q999569.apps.googleusercontent.com';
 let TOKEN = null;
 function run(fn, args, okMsg) {
   document.body.classList.add('busy');
